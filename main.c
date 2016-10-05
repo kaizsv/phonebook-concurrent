@@ -12,7 +12,6 @@
 #include IMPL
 
 #define DICT_FILE "./dictionary/words.txt"
-#define THREAD_NUM 4
 
 static double diff_in_second(struct timespec t1, struct timespec t2)
 {
@@ -75,6 +74,8 @@ int main(int argc, char *argv[])
     /* allocate at beginning */
     entry *entry_pool = (entry *) malloc(sizeof(entry) *
                                          fs / MAX_LAST_NAME_SIZE);
+
+	int THREAD_NUM = get_sysctl_threads_max();
 
     assert(entry_pool && "entry_pool error");
 

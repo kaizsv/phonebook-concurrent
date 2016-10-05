@@ -48,4 +48,5 @@ void show_entry(entry *pHead);
 
 static double diff_in_second(struct timespec t1, struct timespec t2);
 
+int get_sysctl_threads_max();
 #endif

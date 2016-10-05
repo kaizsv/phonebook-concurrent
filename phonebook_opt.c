@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/sysctl.h>
 
 #include "phonebook_opt.h"
 #include "debug.h"
@@ -90,4 +91,15 @@ static double diff_in_second(struct timespec t1, struct timespec t2)
         diff.tv_nsec = t2.tv_nsec - t1.tv_nsec;
     }
     return (diff.tv_sec + diff.tv_nsec / 1000000000.0);
+}
+
+int get_sysctl_threads_max()
+{
+	int mib[2], threads_max;
+	size_t len;
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_MAX_THREADS;
+	len = sizeof(threads_max);
+	sysctl(mib, 2, &threads_max, &len, NULL, 0);
+	return threads_max;
 }
