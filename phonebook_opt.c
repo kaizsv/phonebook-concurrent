@@ -27,49 +27,33 @@ entry *findName(char lastname[], entry *pHead)
     return NULL;
 }
 
-append_a *new_append_a(char *ptr, char *eptr, int tid, int ntd,
-                       entry *start)
+task_info *init_task_info(int i, entry *e)
 {
-    append_a *app = (append_a *) malloc(sizeof(append_a));
+    task_info *task = (task_info *) malloc(sizeof(task_info));
+    task->pHead = (entry *) malloc(sizeof(entry));
+    task->pHead->pNext = NULL;
+    task->pLast = task->pHead;
+    task->entry_start = e;
 
-    app->ptr = ptr;
-    app->eptr = eptr;
-    app->tid = tid;
-    app->nthread = ntd;
-    app->entryStart = start;
-
-    app->pHead = (app->pLast = app->entryStart);
-    return app;
+    return task;
 }
 
-void append(void *arg)
+void task_run(char *p, task_info *task)
 {
-    struct timespec start, end;
-    double cpu_time;
 
-    clock_gettime(CLOCK_REALTIME, &start);
+    cr_start();
 
-    append_a *app = (append_a *) arg;
+    while (1) {
+        task->pLast->lastName = p;
+        task->pLast->pNext = task->entry_start;
+        task->pLast = task->pLast->pNext;
+        task->pLast->pNext = NULL;
 
-    int count = 0;
-    entry *j = app->entryStart;
-    for (char *i = app->ptr; i < app->eptr;
-            i += MAX_LAST_NAME_SIZE * app->nthread,
-            j += app->nthread,count++) {
-        app->pLast->pNext = j;
-        app->pLast = app->pLast->pNext;
+        task->entry_start++;
 
-        app->pLast->lastName = i;
-        dprintf("thread %d append string = %s\n",
-                app->tid, app->pLast->lastName);
-        app->pLast->pNext = NULL;
+        cr_yield();
     }
-    clock_gettime(CLOCK_REALTIME, &end);
-    cpu_time = diff_in_second(start, end);
-
-    dprintf("thread take %lf sec, count %d\n", cpu_time, count);
-
-    pthread_exit(NULL);
+    cr_finish();
 }
 
 void show_entry(entry *pHead)
@@ -80,26 +64,13 @@ void show_entry(entry *pHead)
     }
 }
 
-static double diff_in_second(struct timespec t1, struct timespec t2)
-{
-    struct timespec diff;
-    if (t2.tv_nsec-t1.tv_nsec < 0) {
-        diff.tv_sec  = t2.tv_sec - t1.tv_sec - 1;
-        diff.tv_nsec = t2.tv_nsec - t1.tv_nsec + 1000000000;
-    } else {
-        diff.tv_sec  = t2.tv_sec - t1.tv_sec;
-        diff.tv_nsec = t2.tv_nsec - t1.tv_nsec;
-    }
-    return (diff.tv_sec + diff.tv_nsec / 1000000000.0);
-}
-
 int get_sysctl_threads_max()
 {
-	int mib[2], threads_max;
-	size_t len;
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_MAX_THREADS;
-	len = sizeof(threads_max);
-	sysctl(mib, 2, &threads_max, &len, NULL, 0);
-	return threads_max;
+    int mib[2], threads_max;
+    size_t len;
+    mib[0] = CTL_KERN;
+    mib[1] = KERN_MAX_THREADS;
+    len = sizeof(threads_max);
+    sysctl(mib, 2, &threads_max, &len, NULL, 0);
+    return threads_max;
 }

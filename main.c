@@ -6,7 +6,6 @@
 #include <assert.h>
 
 #include <unistd.h>
-#include <pthread.h>
 #include <sys/mman.h>
 
 #include IMPL
@@ -68,49 +67,35 @@ int main(int argc, char *argv[])
 
     clock_gettime(CLOCK_REALTIME, &start);
 
-    char *map = mmap(NULL, fs, PROT_READ, MAP_SHARED, fd, 0);
+    char *map;
+    map = mmap(NULL, fs, PROT_READ, MAP_SHARED, fd, 0);
     assert(map && "mmap error");
 
     /* allocate at beginning */
-    entry *entry_pool = (entry *) malloc(sizeof(entry) *
-                                         fs / MAX_LAST_NAME_SIZE);
-
-	int THREAD_NUM = get_sysctl_threads_max();
-
+    entry *entry_pool;
+    entry_pool = (entry *) malloc(sizeof(entry) * fs / MAX_LAST_NAME_SIZE);
     assert(entry_pool && "entry_pool error");
 
-    pthread_setconcurrency(THREAD_NUM + 1);
+    int THREAD_NUM = 2;
+    //int THREAD_NUM = get_sysctl_threads_max();
 
-    pthread_t *tid = (pthread_t *) malloc(sizeof(pthread_t) * THREAD_NUM);
-    append_a **app = (append_a **) malloc(sizeof(append_a *) * THREAD_NUM);
+    task_info **task = (task_info **) malloc(sizeof(task_info *) * THREAD_NUM);
     for (i = 0; i < THREAD_NUM; i++)
-        app[i] = new_append_a(map + MAX_LAST_NAME_SIZE * i, map + fs, i,
-                              THREAD_NUM, entry_pool + i);
+        task[i] = init_task_info(i, entry_pool + i);
 
-    for (i = 0; i < THREAD_NUM; i++)
-        pthread_create( &tid[i], NULL, (void *) &append, (void *) app[i]);
-
-    for (i = 0; i < THREAD_NUM; i++)
-        pthread_join(tid[i], NULL);
-
-    entry *etmp;
-    pHead = pHead->pNext;
-    for (i = 0; i < THREAD_NUM; i++) {
-        if (i == 0) {
-            pHead = app[i]->pHead->pNext;
-            dprintf("Connect %d head string %s %p\n", i,
-                    app[i]->pHead->pNext->lastName, app[i]->ptr);
-        } else {
-            etmp->pNext = app[i]->pHead->pNext;
-            dprintf("Connect %d head string %s %p\n", i,
-                    app[i]->pHead->pNext->lastName, app[i]->ptr);
+    char *p = map;
+    while (p < map + fs) {
+        for (i = 0; i < THREAD_NUM; i++) {
+            task_run(p, task[i]);
+            p += MAX_LAST_NAME_SIZE;
         }
-
-        etmp = app[i]->pLast;
-        dprintf("Connect %d tail string %s %p\n", i,
-                app[i]->pLast->lastName, app[i]->ptr);
-        dprintf("round %d\n", i);
     }
+
+    for (i = 0; i < THREAD_NUM - 1; i++) {
+        task[i]->pLast->pNext = task[i+1]->pHead;
+    }
+
+    pHead = task[0]->pHead;
 
     clock_gettime(CLOCK_REALTIME, &end);
     cpu_time1 = diff_in_second(start, end);
@@ -169,8 +154,7 @@ int main(int argc, char *argv[])
     free(pHead);
 #else
     free(entry_pool);
-    free(tid);
-    free(app);
+    free(task);
     munmap(map, fs);
 #endif
     return 0;

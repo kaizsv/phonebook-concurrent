@@ -8,6 +8,22 @@
 
 #define OPT 1
 
+#define cr_start()		   	\
+		static int __s = 0;	\
+		switch (__s) { 		\
+			case 0:
+
+#define cr_yield() 			\
+		do { 				\
+			__s = __LINE__; 	\
+			return; 		\
+			case __LINE__:; \
+		} while (0)
+
+#define cr_finish() \
+		} 			\
+		__s = 0
+
 typedef struct _detail {
     char firstName[16];
     char email[16];
@@ -30,23 +46,18 @@ typedef struct __PHONE_BOOK_ENTRY {
 
 entry *findName(char lastname[], entry *pHead);
 
-typedef struct _append_a {
-    char *ptr;
-    char *eptr;
-    int tid;
-    int nthread;
-    entry *entryStart;
+typedef struct _TASK_INFO {
+    entry *entry_start;
     entry *pHead;
     entry *pLast;
-} append_a;
+} task_info;
 
-append_a *new_append_a(char *ptr, char *eptr, int tid, int ntd, entry *start);
+task_info *init_task_info(int i, entry *e);
 
-void append(void *arg);
+void task_run(char *p, task_info *task);
 
 void show_entry(entry *pHead);
 
-static double diff_in_second(struct timespec t1, struct timespec t2);
-
 int get_sysctl_threads_max();
+
 #endif
